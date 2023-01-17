@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Create the ".out" files and then produce the ".lklhd" files
+
+# source ./args_for_step1_step2_inference_bash_file
+while read hybrid_name
+do
+    chrom_filename="${scaffold_name}_w${window_index}.chrom"
+    BO_filename="BO_${scaffold_name}_w${window_index}.popA"
+    SO_filename="SO_${scaffold_name}_w${window_index}.popB"
+    hyb_sim_filename="${hybrid_name}_${scaffold_name}_w${window_index}.sim"
+    hyb_out_filename="${hybrid_name}_${scaffold_name}_w${window_index}.out"
+    ./inferHybrid -p ${chrom_filename} -A ${BO_filename} -B ${SO_filename} -i ${hyb_sim_filename} ${hyb_out_filename} &
+    # 	hyb_lklhd_filename="${hybrid_name}.lklhd"
+    # columns_A_to_F=`awk -f sum_all_dip.awk ${hyb_out_filename}`
+    # row=`echo ${window_index}$'\t'${scaffold_name}$'\t'"${columns_A_to_F}"`
+    # echo "${row}" >> ${hyb_lklhd_filename}
+done < ${hyb_filename}
+wait
+
+while read hybrid_name
+do
+    # chrom_filename="${scaffold_name}_w${window_index}.chrom"
+    # BO_filename="BO_${scaffold_name}_w${window_index}.popA"
+    # SO_filename="SO_${scaffold_name}_w${window_index}.popB"
+    # hyb_sim_filename="${hybrid_name}_${scaffold_name}_w${window_index}.sim"
+    hyb_out_filename="${hybrid_name}_${scaffold_name}_w${window_index}.out"
+    # ./inferHybrid -p ${chrom_filename} -A ${BO_filename} -B ${SO_filename} -i ${hyb_sim_filename} ${hyb_out_filename} &&
+    hyb_lklhd_filename="${hybrid_name}.lklhd"
+    columns_A_to_F=`awk -f sum_all_dip.awk ${hyb_out_filename}`
+    row=`echo ${window_index}$'\t'${scaffold_name}$'\t'"${columns_A_to_F}"`
+    echo "${row}" >> ${hyb_lklhd_filename}
+done < ${hyb_filename}
+
+
+

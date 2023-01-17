@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Create arguments list for the script step1 for all scaffolds (the first 15 largest)
+
+recom_rate=1.5
+recom_freq=50
+n_markers=10
+
+autosomes_info_filename="autosome_id_length.txt"
+BO_filename="BO_sampleID.txt"
+SO_filename="SO_sampleID.txt"
+hyb_filename="Hybrids_ID.txt"
+
+arg_step1_filename="args_list_all_scaffolds_step1.txt"
+
+while read scaffold length
+do
+
+    length_Mb=`printf "%.2f\n" $(echo "scale=4; (${length}/(10^6))" | bc)`
+
+    column1=`echo "recom_rate=${recom_rate}"`
+    column2=`echo "recom_freq=${recom_freq}"`
+    column3=`echo "n_markers=${n_markers}"`
+    column4=`echo "scaffold_name=${scaffold}"`
+    column5=`echo "scaffold_length=${length_Mb}"`
+    column6=`echo "BO_filename=\"${BO_filename}\""`
+    column7=`echo "SO_filename=\"${SO_filename}\""`
+    column8=`echo "hyb_filename=\"${hyb_filename}\""`
+    row=`echo ${column1}$'\t'${column2}$'\t'${column3}$'\t'${column4}$'\t'${column5}$'\t'${column6}$'\t'${column7}$'\t'${column8}$'\t'`
+    echo ${row} >> ${arg_step1_filename}
+    
+done < ${autosomes_info_filename}
+
+

@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Create the ".sim" ".out" files and then produce the ".lklhd" files
+# for all the pure individuals from the two populations (Barred Owl and Spotted Owl)
+
+
+# chrom_filename="${scaffold_name}_w${window_index}.chrom"
+# BO_filename="BO_${scaffold_name}_w${window_index}.popA"
+# SO_filename="SO_${scaffold_name}_w${window_index}.popB"
+# BO_GT_filename="BO_${scaffold_name}_w${window_index}.GT"
+# SO_GT_filename="SO_${scaffold_name}_w${window_index}.GT"
+
+line_BO=1
+while read pure_BO
+do
+    chrom_filename="${scaffold_name}_w${window_index}.chrom"
+    BO_filename="BO_${scaffold_name}_w${window_index}.popA"
+    SO_filename="SO_${scaffold_name}_w${window_index}.popB"
+    BO_GT_filename="BO_${scaffold_name}_w${window_index}.GT"
+
+    BO_sim_filename="${pure_BO}_${scaffold_name}_w${window_index}.sim.BO"
+    line_BO=$((line_BO+1))
+    BO_sim_lines=`awk -v c=${line_BO} '{print $1, $c}' ${BO_GT_filename}`
+    echo "${BO_sim_lines}" > ${BO_sim_filename}
+    BO_out_filename="${pure_BO}_${scaffold_name}_w${window_index}.out.BO"
+    
+    ./inferHybrid -p ${chrom_filename} -A ${BO_filename} -B ${SO_filename} -i ${BO_sim_filename} ${BO_out_filename} &
+    # BO_lklhd_filename="${pure_BO}.lklhd.BO"
+    # columns_A_to_F=`awk 'NR != 1{print $1, $2, $3, $4, $5, $6}' ${BO_out_filename}`
+    # row=`echo ${window_index}$'\t'${scaffold_name}$'\t'"${columns_A_to_F}"`
+    # echo "${row}" >> ${BO_lklhd_filename}
+done < ${BO_filename}
+wait
+
+while read pure_BO
+do
+    BO_out_filename="${pure_BO}_${scaffold_name}_w${window_index}.out.BO"
+    BO_lklhd_filename="${pure_BO}.lklhd.BO"
+    columns_A_to_F=`awk 'NR != 1{print $1, $2, $3, $4, $5, $6}' ${BO_out_filename}`
+    row=`echo ${window_index}$'\t'${scaffold_name}$'\t'"${columns_A_to_F}"`
+    echo "${row}" >> ${BO_lklhd_filename}
+done < ${BO_filename}
+
+
+
+
+line_SO=1
+while read pure_SO
+do
+    chrom_filename="${scaffold_name}_w${window_index}.chrom"
+    BO_filename="BO_${scaffold_name}_w${window_index}.popA"
+    SO_filename="SO_${scaffold_name}_w${window_index}.popB"
+    SO_GT_filename="SO_${scaffold_name}_w${window_index}.GT"
+
+    SO_sim_filename="${pure_SO}_${scaffold_name}_w${window_index}.sim.SO"
+    line_SO=$((line_SO+1))
+    SO_sim_lines=`awk -v c=${line_SO} '{print $1, $c}' ${SO_GT_filename}`
+    echo "${SO_sim_lines}" > ${SO_sim_filename}
+    
+    SO_out_filename="${pure_SO}_${scaffold_name}_w${window_index}.out.SO"
+    
+    ./inferHybrid -p ${chrom_filename} -A ${BO_filename} -B ${SO_filename} -i ${SO_sim_filename} ${SO_out_filename} &
+    # SO_lklhd_filename="${pure_SO}.lklhd.SO"
+    # columns_A_to_F=`awk 'NR != 1{print $1, $2, $3, $4, $5, $6}' ${SO_out_filename}`
+    # row=`echo ${window_index}$'\t'${scaffold_name}$'\t'"${columns_A_to_F}"`
+    # echo "${row}" >> ${SO_lklhd_filename}
+done < ${SO_filename}
+wait
+
+while read pure_SO
+do
+    SO_out_filename="${pure_SO}_${scaffold_name}_w${window_index}.out.SO"
+    SO_lklhd_filename="${pure_SO}.lklhd.SO"
+    columns_A_to_F=`awk 'NR != 1{print $1, $2, $3, $4, $5, $6}' ${SO_out_filename}`
+    row=`echo ${window_index}$'\t'${scaffold_name}$'\t'"${columns_A_to_F}"`
+    echo "${row}" >> ${SO_lklhd_filename}
+done < ${SO_filename}
+
+
+

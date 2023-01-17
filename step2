@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# MODIFY SCRIPT STEP2    
+#---------------------------------------------------------------------------------------------------------------------------->
+# This script is to produce all possible haplotypes (phased) for hybrids for downstream calculation of population haplotype
+# frequencies (adjusted)
+
+# This script will produce the ".popA", ".popB", ".sim" files
+# The population haplotype frequency files are adjusted for the missing haplotypes
+
+# Given the unphased data of a hybrid individual this script will produce all possible diplotypes for that individual in the ".sim" format.
+# Produce ".sim" files for all the 15 hybrids
+
+
+# source ./args_for_step1_step2_inference_bash_file
+# window_index=2
+# echo ${window_index}
+BO_genotype_file="BO_${scaffold_name}_w${window_index}.GT"         # multi locus genotype data for Barred Owl
+SO_genotype_file="SO_${scaffold_name}_w${window_index}.GT"         # multi locus genotype data for Spotted Owl  
+hybrid_genotype_file="hybrid_${scaffold_name}_w${window_index}.GT" # file containing the multilocus genotype information of the hybrids (contains both phased and unphased data)
+
+header=`awk 'BEGIN {ORS="\t"}; {print $1}' ${hybrid_genotype_file}`
+header+=$'\n'
+# scaffold_window_info=`echo "$1" | awk -F. '{print $1}' | cut -c 8-`
+scaffold_window_info="${scaffold_name}_w${window_index}"
+
+number_hybrids=`awk '{print NF; exit}' ${hybrid_genotype_file}`
+count=0
+for (( j=2; j<=${number_hybrids}; j++))
+do
+    indv_header=`awk 'BEGIN {ORS="\t"}; {print $1}' ${hybrid_genotype_file}`
+    indv_header+=$'\n'
+    indv_count=0
+    
+    hap1=`awk -v i=$j '{print $1, $i}' ${hybrid_genotype_file} | ./transpose | awk -f get_hyb_diplo.awk | awk '{print $1}'`
+    hap2=`awk -v i=$j '{print $1, $i}' ${hybrid_genotype_file} | ./transpose | awk -f get_hyb_diplo.awk | awk '{print $2}'`
+    hap_1=`echo "ibase=2;${hap1}" | bc`
+    hap_2=`echo "ibase=2;${hap2}" | bc`
+
+    if [ ${hap_1} != ${hap_2} ]
+    then           
+        all_dip=`./gendiplo 0 ${hap_1} ${hap_2}`
+    else                 
+        # reversed to be in parity with the gendiplo output format
+        rev_hap_1=`echo "${hap1}" | rev`
+        rev_hap_2=`echo "${hap2}" | rev`              
+        all_dip=`echo "${rev_hap_1}" "${rev_hap_2}"`
+    fi
+    
+    while read line
+    do
+	count=$((count+1))
+	indv_count=$((indv_count+1))
+	print_string=""
+	haplo1=`echo "${line}" | awk '{print $1}'`
+	haplo2=`echo "${line}" | awk '{print $2}'`
+	hap1=`echo "${haplo1}" | rev`
+	hap2=`echo "${haplo2}" | rev`
+	# echo "i${count}: HAP1:${hap1} HAP2:${hap2}"
+	for (( i=0; i<${#hap1}; i++))
+	do
+    	    string="${hap1:$i:1}"
+    	    string="${string}|"${hap2:$i:1}""
+    	    print_string+=`echo ${string}$'\t'`
+
+	done
+	# echo i${count}$'\t'"${print_string}"
+	header+=`echo i${count}$'\t'"${print_string}"`
+	header+=$'\n'
+
+	indv_header+=`echo i${indv_count}$'\t'"${print_string}"`
+	indv_header+=$'\n'
+	
+    done < <(echo "${all_dip}")
+    
+    indv_filename=`awk -v i=$j 'NR==1{print $i}' ${hybrid_genotype_file}`
+    indv_filename="${indv_filename}_${scaffold_window_info}.sim"
+    indv_all_dip=`echo "${indv_header}" | ./transpose`
+    echo "${indv_all_dip}" > "${indv_filename}" 
+    sed -i "s/${scaffold_name}/1/g" ${indv_filename}
+done
+
+
+final_formatted_indv=`echo "${header}" | ./transpose`
+
+
+
+
+# ${final_formatted_indv} contains the multi locus genotype data for hybrids (all possible phases compatible with the sampled diplotypes)
+# obtained after running the script "adjust_print_all_dip" on multi genotype data of hybrid individuals
+
+
+hyb=`echo "${final_formatted_indv}" | ./transpose | awk -f hap_frequency.awk`
+BO=`./transpose ${BO_genotype_file} | awk -f hap_frequency.awk`
+SO=`./transpose ${SO_genotype_file} | awk -f hap_frequency.awk`
+all_hap=`echo "${BO}" | awk '{print $1}'`
+all_hap="${all_hap}"$'\n'"`echo "${SO}" | awk '{print $1}'`"
+all_hap="${all_hap}"$'\n'"`echo "${hyb}" | awk '{print $1}'`"
+uniq_hap=`echo "${all_hap}" | awk -f uniq_hap.awk`
+BO_freq=`echo "1"$'\t'`
+SO_freq=`echo "1"$'\t'`
+BO_freq+=`awk -f final_update_hap_freq.awk <(echo "${uniq_hap}") <(echo "${BO}")`
+SO_freq+=`awk -f final_update_hap_freq.awk <(echo "${uniq_hap}") <(echo "${SO}")`
+
+# BO_freq_filename=`echo "$2" | awk -F. '{print $1}'`
+# SO_freq_filename=`echo "$3" | awk -F. '{print $1}'`
+
+BO_freq_filename="BO_${scaffold_name}_w${window_index}.popA"
+SO_freq_filename="SO_${scaffold_name}_w${window_index}.popB"
+
+echo "${BO_freq}" > ${BO_freq_filename}
+echo "${SO_freq}" > ${SO_freq_filename}
+
+
+    

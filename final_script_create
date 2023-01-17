@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# Given the scaffold info, recombination rate, recombination frequency, sample IDs and window indexes
+# this automated script goes through all the intermediate steps (create_scaffold_info_files, step1, step2, script_automate_inference_all_hybrids)
+# to create the final required ".lklhd" files
+
+# $1 = text file containing all the arguments for all the scaffolds
+# $2 = text file containing the window indices
+
+
+
+while read line
+do
+    # args_file_scaffold="example_args_scaffold_info"
+    
+    # args_file_scaffold="scaffold_info_args_bash_file"
+    # echo "#!/bin/bash" > ${args_file_scaffold}
+    # echo "  " >> ${args_file_scaffold}
+    # echo "${line}" >> ${args_file_scaffold}
+    # chmod +x ${args_file_scaffold}
+    # ./create_scaffold_info_files
+
+    command_create_info_files="${line} ./create_scaffold_info_files"
+    eval ${command_create_info_files} &
+    while read window_index
+    do
+    	# args_file="example_args"
+	
+    	# args_file="args_for_step1_step2_inference_bash_file"
+    	# echo "#!/bin/bash" > ${args_file}
+    	# echo "  " >> ${args_file}
+	# echo ${row_args} >> ${args_file}
+    	# chmod +x ${args_file}
+    	# echo ${window_info} >> ${args_file}
+
+    	window_info=`echo "window_index=${window_index}"`
+    	row_args=`echo ${line}$'\t'${window_info}`
+	command_step1="${row_args} ./step1"
+	eval ${command_step1} &
+    done < $2
+    wait
+    
+    while read window_index
+    do
+    	window_info=`echo "window_index=${window_index}"`
+    	row_args=`echo ${line}$'\t'${window_info}`
+	command_step2="${row_args} ./step2"
+	eval ${command_step2} &
+    done < $2
+    wait
+    
+    while read window_index
+    do
+    	window_info=`echo "window_index=${window_index}"`
+    	row_args=`echo ${line}$'\t'${window_info}`
+	command_inference="${row_args} ./script_automate_inference_all_hybrids"
+	eval ${command_inference} &
+    done < $2
+done < $1
+
+# window_1_2.txt
+# example_args.txt

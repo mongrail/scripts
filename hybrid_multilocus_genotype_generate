@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Produce information on markers (for a particular chromosome) such as
+# 1. leftmost marker that could be selected as the starting point
+# 2. rightmost marker that could be selected as the starting point
+# 3. number of windows possible
+# This summary will help the user to select a particular window of markers
+# for downstream analyses
+# (INPUT: the recombination rate, recombination frequency, number of markers, chromosome name)
+# $1 = recombination rate
+# $2 = recombination frequency
+# $3 = number of markers
+# $4 = chromosome name
+# $5 = hybrid sample IDs
+
+
+chrom_no_missing="$4_no_missing.vcf.gz"
+# bcftools view -r $4 no_missing_data_all.vcf.gz > SS7_no_missing.vcf &&
+#     bgzip SS7_no_missing.vcf &&
+#     tabix SS7_no_missing.vcf.gz &&
+
+
+all_markers=`bcftools query -f '%POS\n' ${chrom_no_missing}`
+total_markers_vcf=`echo "${all_markers}" | wc -l `
+recom_rate="$1"
+recom_freq="$2"
+n_markers="$3"
+window_length=`echo ${recom_freq}*$((10**6))/${recom_rate} | bc -l`
+window_length=`echo "${window_length}/1" | bc`
+
+# leftmost_marker=`echo "${all_markers}" | sed -n '1p'`
+# last_marker=`echo "${all_markers}" | tail -1`
+# # echo ${last_marker}
+# theoretical_rightmost_marker=`echo ${last_marker}-${window_length} | bc -l`
+# # echo ${theoretical_rightmost_marker}
+# empirical_rightmost_marker=`echo "${all_markers}" | awk -v c=1 -v t=${theoretical_rightmost_marker} 'NR==1{d=$c-t;d=d<0?-d:d;v=$c;next}{m=$c-t;m=m<0?-m:m}m<d{d=m;v=$c}m>d{exit}END{print v}'`
+# number_windows=`echo "${all_markers}" | grep -n ${empirical_rightmost_marker} | awk -F: '{print $1}'`
+
+# echo "The total number of markers in the vcf file is: ${total_markers_vcf}"
+# echo "The recombination rate is: ${recom_rate} cM/Mb"
+# echo "The recombination frequency is: ${recom_freq} cM"
+# echo The number of markers to be considered: ${n_markers}
+# echo "The length of the window (distance between first and last marker) is: "${window_length}" bp when recombination frequency is: ${recom_freq} cM"
+# echo The leftmost marker that could be selected as the starting point is: ${leftmost_marker}
+# echo The rightmost marker that could be selected as the starting point is: ${empirical_rightmost_marker}
+# echo All possible number of windows: ${number_windows}
+
+echo -n "Enter the index of the window to be considered: "
+read window_index
+echo ${window_index}
+first_marker=`echo "${all_markers}" | sed -n "${window_index}p"`
+echo ${first_marker}
+inter_marker_distance=$(echo "${window_length}/$(( ${n_markers}-1 ))" | bc -l)
+inter_marker_distance=`echo "${inter_marker_distance}/1" | bc`
+echo ${inter_marker_distance}
+theoretical_markers=()
+for ((i=0; i<= ${n_markers}-1; i++))
+do
+    m=$(echo "${first_marker}+$i*${inter_marker_distance}" | bc)
+    theoretical_markers+=( $m )
+done
+
+
+empirical_markers=()
+for j in ${theoretical_markers[@]}
+do
+    m1=`echo "${all_markers}" | awk -v c=1 -v t=$j 'NR==1{d=$c-t;d=d<0?-d:d;v=$c;next}{m=$c-t;m=m<0?-m:m}m<d{d=m;v=$c}m>d{exit}END{print v}'`
+    empirical_markers+=( $4:$m1 )
+done
+
+hybrid_multilocus_genotype_file="hybrid_multi_GT_$4.txt"
+
+header_hybrid="chrom:pos"
+while read indv
+do
+    header_hybrid+=`echo $'\t'${indv}`
+done < $5
+echo "${header_hybrid}" > ${hybrid_multilocus_genotype_file}
+
+    
+for i in ${empirical_markers[@]}
+do
+    bcftools query -r $i -S $5 -f '%CHROM:%POS\t\t[\t%GT]\n' ${chrom_no_missing} >> ${hybrid_multilocus_genotype_file}
+done

@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Extract the particular scaffold for pure populations (from the file with no missing entries)
+# Then phase them using Beagle
+
+
+
+autosome_id_filename="autosome_id_length.txt"
+BO_id_filename="BO_sampleID.txt"
+SO_id_filename="SO_sampleID.txt"
+
+scaffold_list=`awk '{print $1}' ${autosome_id_filename}`
+
+while read scaffold
+do
+    # echo ${scaffold}
+    # echo "-----------------------------"
+    # Extracting the particular scaffold from the data with no missing entries
+    chrom_no_missing="${scaffold}_no_missing.vcf"
+    bcftools view -r ${scaffold} no_missing_data_all.vcf.gz > ${chrom_no_missing} &&
+    bgzip ${chrom_no_missing} &&
+    tabix "${chrom_no_missing}.gz" &&
+    chrom_no_missing="${chrom_no_missing}.gz"
+
+    BO_no_missing="BO_${scaffold}.vcf"
+    SO_no_missing="SO_${scaffold}.vcf"
+    BO_phased="BO_${scaffold}.phased"
+    SO_phased="SO_${scaffold}.phased"
+    
+    # Separating the Barred Owls and Spotted Owls for a particular scaffold
+
+    bcftools view -S ${BO_id_filename} -r ${scaffold} ${chrom_no_missing} > ${BO_no_missing} &&
+    bgzip ${BO_no_missing} &&
+    tabix "${BO_no_missing}.gz" &&
+
+    bcftools view -S ${SO_id_filename} -r ${scaffold} ${chrom_no_missing} > ${SO_no_missing} &&
+    bgzip ${SO_no_missing} &&
+    tabix "${SO_no_missing}.gz" &&
+
+    # Phasing the pure populations using Beagle software
+
+
+    beagle gt="${BO_no_missing}.gz" out=${BO_phased} window=20 overlap=4 &> screen_BO.txt &&
+    tabix "${BO_phased}.vcf.gz"
+
+
+    beagle gt="${SO_no_missing}.gz" out=${SO_phased} window=20 overlap=4 &> screen_SO.txt &&
+    tabix "${SO_phased}.vcf.gz"
+
+done < <(echo "${scaffold_list}")
+

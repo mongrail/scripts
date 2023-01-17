@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Produce information on markers (for a particular chromosome) such as
+# 1. leftmost starting marker
+# 2. rightmost starting marker
+# 3. number of windows possible
+
+# Creates ".info" files
+
+# This summary will help the user to select a particular window of markers
+# for downstream analyses
+
+
+
+# source ./scaffold_info_args_bash_file
+chrom_no_missing="${scaffold_name}_no_missing.vcf.gz"
+all_markers=`bcftools query -f '%POS\n' ${chrom_no_missing}`
+total_markers_vcf=`echo "${all_markers}" | wc -l `
+window_length=`echo ${recom_freq}*$((10**6))/${recom_rate} | bc -l`
+window_length=`echo "${window_length}/1" | bc`
+
+leftmost_marker=`echo "${all_markers}" | sed -n '1p'`
+last_marker=`echo "${all_markers}" | tail -1`
+# echo ${last_marker}
+theoretical_rightmost_marker=`echo ${last_marker}-${window_length} | bc -l`
+# echo ${theoretical_rightmost_marker}
+empirical_rightmost_marker=`echo "${all_markers}" | awk -v c=1 -v t=${theoretical_rightmost_marker} 'NR==1{d=$c-t;d=d<0?-d:d;v=$c;next}{m=$c-t;m=m<0?-m:m}m<d{d=m;v=$c}m>d{exit}END{print v}'`
+number_windows=`echo "${all_markers}" | grep -n ${empirical_rightmost_marker} | awk -F: '{print $1}'`
+
+
+scaffold_info="${scaffold_name}_recom_rate_${recom_rate}_map_length_${recom_freq}.info"
+echo "(Given parameter values)" > ${scaffold_info} &&
+echo "Recombination rate: ${recom_rate} cM/Mb" >> ${scaffold_info} &&
+echo "Recombination frequency (Map Length of the window): ${recom_freq} cM" >> ${scaffold_info} &&
+echo "Number of markers considered: ${n_markers}" >> ${scaffold_info} &&
+echo "------------------------------------------------------------------------------------------------------------------->" >> ${scaffold_info} &&
+echo "Number of markers in ${scaffold_name} (with no missing entries) : ${total_markers_vcf}" >> ${scaffold_info} &&
+echo "The length of the window (the physical distance between first and last marker in bp): "${window_length}" bp" >> ${scaffold_info} &&
+echo "Leftmost starting marker: ${leftmost_marker}" >> ${scaffold_info} &&
+echo "Rightmost starting marker: ${empirical_rightmost_marker}" >> ${scaffold_info} &&
+echo "Total number of windows: ${number_windows}" >> ${scaffold_info}
